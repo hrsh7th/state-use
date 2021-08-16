@@ -97,12 +97,12 @@ test('shouldn\'t update (update API)', () => {
       s.a = 1;
     });
   });
-  expect(result.current).toStrictEqual(current);
+  expect(result.current).toBe(current);
   expect(result.all).toHaveLength(1);
 
   // no change deps.
   rerender({ delta: 1 })
-  expect(result.current).toStrictEqual(current);
+  expect(result.current).toBe(current);
   expect(result.all).toHaveLength(2);
 });
 
