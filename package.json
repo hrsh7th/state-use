@@ -1,6 +1,6 @@
 {
   "name": "state-use",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Simple state manager for React",
   "main": "lib/index.js",
   "scripts": {
@@ -10,7 +10,9 @@
     "build:esm": "tsc --project ./tsconfig.esm.json",
     "release": "np"
   },
-  "files": ["lib/*"],
+  "files": [
+    "lib/*"
+  ],
   "author": "hrsh7th",
   "license": "MIT",
   "jest": {
