@@ -10,6 +10,7 @@
     "build:esm": "tsc --project ./tsconfig.esm.json",
     "release": "np"
   },
+  "files": ["lib/*"],
   "author": "hrsh7th",
   "license": "MIT",
   "jest": {
