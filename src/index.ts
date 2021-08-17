@@ -1,4 +1,4 @@
-import { produce } from 'immer';
+import { Draft, produce } from 'immer';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { unstable_batchedUpdates } from 'react-dom';
 
@@ -44,6 +44,11 @@ class State<S> {
   private state!: S;
 
   /**
+   * An draft object current proceeding.
+   */
+  private draft?: Draft<S>;
+
+  /**
    * A list of function to update component's local state.
    */
   private depends: ((s: S) => void)[] = [];
@@ -67,13 +72,13 @@ class State<S> {
     }
 
     try {
-      this.commit(produce(this.state, s => {
+      this.produce(s => {
         updater(s as S, (runner: () => Promise<any>) => {
           throw {
             [AsyncSymbol]: runner(),
           };
         });
-      }));
+      });
     } catch (e) {
       // passthrough.
       if (!isAsync(e)) {
@@ -81,28 +86,28 @@ class State<S> {
       }
 
       // loading state.
-      this.commit(produce(this.state, s => {
+      this.produce(s => {
         updater(s as S, () => ({
           state: 'loading'
         }));
-      }));
+      });
 
       e[AsyncSymbol].then(response => {
         // success state.
-        this.commit(produce(this.state, s => {
+        this.produce(s => {
           updater(s as S, () => ({
             state: 'success',
             response: response,
           }));
-        }));
+        });
       }, error => {
         // failure state.
-        this.commit(produce(this.state, s => {
+        this.produce(s => {
           updater(s as S, () => ({
             state: 'failure',
             error: error,
           }));
-        }));
+        });
       });
     }
 
@@ -168,6 +173,27 @@ class State<S> {
       select = ((s) => s) as Select;
     }
     return select(this.state);
+  };
+
+  /**
+   * A produce function that supports nested update.
+   */
+  private produce = (updater: (s: Draft<S>) => void): void => {
+    if (this.draft) {
+      updater(this.draft);
+      return
+    }
+    try {
+      const newState = produce(this.state, s => {
+        this.draft = s;
+        updater(s);
+        this.draft = undefined;
+      });
+      this.commit(newState);
+    } catch (e) {
+      this.draft = undefined;
+      throw e;
+    }
   };
 
   /**

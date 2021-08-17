@@ -111,6 +111,22 @@ test('async failure', async () => {
   expect(result.all).toHaveLength(3);
 });
 
+test('nested update', () => {
+  const state = define<{ a: number }>();
+  state.setup({ a: 1 });
+  const { result } = renderHook(() => state.use(s => s.a));
+  act(() => {
+    state.update(s => {
+      s.a++;
+      state.update(s => {
+        s.a++;
+      });
+    });
+  });
+  expect(result.current).toEqual(3);
+  expect(result.all).toHaveLength(2);
+});
+
 test('revoked draft should raise error', (done) => {
   const state = define<{ a: number }>();
   state.setup({ a: 1 });
