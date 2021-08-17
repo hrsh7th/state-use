@@ -1,10 +1,21 @@
-import { createDraft, Draft, finishDraft } from 'immer';
+import { produce } from 'immer';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { unstable_batchedUpdates } from 'react-dom';
 
 const useIsomorphicEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
-export type Updater<S> = (s: S) => void;
+export type Async<R, E> = {
+  state: 'default';
+} | {
+  state: 'loading';
+} | {
+  state: 'success';
+  response: R;
+} | {
+  state: 'failure';
+  error: E;
+};
+export type Updater<S> = (s: S, async: <R>(runner: () => Promise<R>) => Async<R, unknown>) => void;
 export type Selector<S, A = S> = (s: S) => A;
 
 /**
@@ -15,11 +26,6 @@ export function define<S>() {
 }
 
 class State<S> {
-
-  /**
-   * You can modify it and then call `commit` to cause re-rendering.
-   */
-  public draft!: Draft<S>;
 
   /**
    * State has setup or not.
@@ -34,7 +40,7 @@ class State<S> {
   /**
    * A list of function to update component's local state.
    */
-  private depends: Updater<S>[] = [];
+  private depends: ((s: S) => void)[] = [];
 
   /**
    * Setup default state.
@@ -42,7 +48,6 @@ class State<S> {
   public setup = (state: S) => {
     this.hasSetup = true;
     this.state = state;
-    this.draft = createDraft(state);
   }
 
   /**
@@ -55,32 +60,45 @@ class State<S> {
       }
     }
 
-    updater(this.draft as S);
-    this.commit();
-  };
-
-  /**
-   * commit draft.
-   */
-  public commit = () => {
-    if (process.env.NODE_ENV === 'development') {
-      if (!this.hasSetup) {
-        throw new Error('Required to call `setup` first.');
-      }
-    }
-
-    const state = finishDraft(this.draft) as S
-    this.draft = createDraft(state);
-
-    if (state !== this.state) {
-      this.state = state;
-      unstable_batchedUpdates(() => {
-        this.depends.forEach(dep => {
-          dep(this.state);
+    try {
+      this.commit(produce(this.state, s => {
+        updater(s as S, (runner: () => Promise<any>) => {
+          throw runner();
         });
+      }));
+    } catch (e) {
+      // passthrough.
+      if (!(e instanceof Promise)) {
+        throw e;
+      }
+
+      // loading state.
+      this.commit(produce(this.state, s => {
+        updater(s as S, () => ({
+          state: 'loading'
+        }));
+      }));
+
+      e.then(response => {
+        // success state.
+        this.commit(produce(this.state, s => {
+          updater(s as S, () => ({
+            state: 'success',
+            response: response,
+          }));
+        }));
+      }, error => {
+        // failure state.
+        this.commit(produce(this.state, s => {
+          updater(s as S, () => ({
+            state: 'failure',
+            error: error,
+          }));
+        }));
       });
     }
-  }
+
+  };
 
   /**
    * use state.
@@ -126,6 +144,26 @@ class State<S> {
     }, deps);
 
     return selectedRef.current!;
+  }
+
+  /**
+   * commit .
+   */
+  private commit = (newState: S) => {
+    if (process.env.NODE_ENV === 'development') {
+      if (!this.hasSetup) {
+        throw new Error('Required to call `setup` first.');
+      }
+    }
+
+    if (newState !== this.state) {
+      this.state = newState;
+      unstable_batchedUpdates(() => {
+        this.depends.forEach(dep => {
+          dep(this.state);
+        });
+      });
+    }
   }
 }
 
