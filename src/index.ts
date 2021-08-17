@@ -4,6 +4,12 @@ import { unstable_batchedUpdates } from 'react-dom';
 
 const useIsomorphicEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
+const AsyncSymbol = Symbol('state-use:async');
+
+const isAsync = (e: any): e is { [AsyncSymbol]: Promise<any> } => {
+  return e && typeof e === 'object' && e[AsyncSymbol] instanceof Promise;
+};
+
 export type Async<R, E> = {
   state: 'default';
 } | {
@@ -63,12 +69,14 @@ class State<S> {
     try {
       this.commit(produce(this.state, s => {
         updater(s as S, (runner: () => Promise<any>) => {
-          throw runner();
+          throw {
+            [AsyncSymbol]: runner(),
+          };
         });
       }));
     } catch (e) {
       // passthrough.
-      if (!(e instanceof Promise)) {
+      if (!isAsync(e)) {
         throw e;
       }
 
@@ -79,7 +87,7 @@ class State<S> {
         }));
       }));
 
-      e.then(response => {
+      e[AsyncSymbol].then(response => {
         // success state.
         this.commit(produce(this.state, s => {
           updater(s as S, () => ({
