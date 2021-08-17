@@ -10,7 +10,7 @@
     "build": "npm run build:cjs && npm run build:esm",
     "build:cjs": "tsc --project ./tsconfig.json",
     "build:esm": "tsc --project ./tsconfig.esm.json",
-    "release": "np"
+    "release": "npm run build && np"
   },
   "files": [
     "lib/*"
