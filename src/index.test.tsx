@@ -106,3 +106,13 @@ test('shouldn\'t update (update API)', () => {
   expect(result.all).toHaveLength(2);
 });
 
+test('revoked draft should raise error', () => {
+  const state = define<{ a: number }>();
+  state.setup({ a: 1 });
+  const oldDraft = state.draft;
+  state.draft.a++;
+  state.commit();
+  expect(() => {
+    oldDraft.a++;
+  }).toThrowError();
+});
