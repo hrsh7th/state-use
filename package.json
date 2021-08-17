@@ -14,6 +14,11 @@
     "lib/*"
   ],
   "author": "hrsh7th",
+  "keywords": ["React", "state", "immer", "immutable"],
+  "repository": {
+    "url": "https://github.com/hrsh7th/state-use",
+    "type": "github"
+  },
   "license": "MIT",
   "jest": {
     "testEnvironment": "node",
