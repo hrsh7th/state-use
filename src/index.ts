@@ -33,7 +33,7 @@ class State<S> {
   private hasSetup = false;
 
   /**
-   * internal state object.
+   * An internal state object.
    */
   private state!: S;
 
@@ -101,7 +101,7 @@ class State<S> {
   };
 
   /**
-   * use state.
+   * Use state.
    */
   public use = <Select extends Selector<S, any> = (s: S) => S>(select?: Select, deps: React.DependencyList = []): ReturnType<Select> => {
     if (process.env.NODE_ENV === 'development') {
@@ -147,7 +147,23 @@ class State<S> {
   }
 
   /**
-   * commit .
+   * Get state without including it in rendering dependencies.
+   */
+  public get = <Select extends Selector<S, any> = (s: S) => S>(select?: Select): ReturnType<Select> => {
+    if (process.env.NODE_ENV === 'development') {
+      if (!this.hasSetup) {
+        throw new Error('Required to call `setup` first.');
+      }
+    }
+
+    if (typeof select === 'undefined') {
+      select = ((s) => s) as Select;
+    }
+    return select(this.state);
+  };
+
+  /**
+   * Commit if state was changed.
    */
   private commit = (newState: S) => {
     if (process.env.NODE_ENV === 'development') {
