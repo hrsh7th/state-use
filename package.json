@@ -1,6 +1,6 @@
 {
   "name": "state-use",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Simple state manager for React",
   "main": "lib/index.js",
   "scripts": {
@@ -14,7 +14,12 @@
     "lib/*"
   ],
   "author": "hrsh7th",
-  "keywords": ["React", "state", "immer", "immutable"],
+  "keywords": [
+    "React",
+    "state",
+    "immer",
+    "immutable"
+  ],
   "repository": {
     "url": "https://github.com/hrsh7th/state-use",
     "type": "github"
