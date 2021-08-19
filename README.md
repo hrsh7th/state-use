@@ -63,7 +63,9 @@ export const User = () => {
   const nickname = UserState.use(s => s.nickname);
 
   const onNicknameClick = useCallback(() => {
-    UserState.update(s => s.nickname = 'new nickname');
+    UserState.update(ctx => {
+      ctx.state.nickname = 'new nickname';
+    });
   });
 
   return (
@@ -86,15 +88,16 @@ export const User = () => {
   const user = UserState.use();
 
   const onFetchButtonClick = useCallback(() => {
+    // Warning: You must use `ctx.state` directly. You can't save `ctx.state` as another variable.
     UserState.update(function *(ctx) => {
-      s.details.state = 'loading';
+      ctx.state.details.state = 'loading';
       try {
-        s.details = {
+        ctx.state.details = {
           state: 'success',
           response: yield fetch(`https://example.com/users/${s.id}/details`).then(res => res.json())
         };
       } catch (e) {
-        s.details = {
+        ctx.state.details = {
           state: 'failure',
           error: error
         };
