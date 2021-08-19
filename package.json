@@ -4,6 +4,7 @@
   "description": "Simple state manager for React",
   "main": "./lib/cjs/index.js",
   "module": "./lib/esm/index.js",
+  "typings": "./lib/dts/index.d.ts",
   "sideEffect": false,
   "scripts": {
     "test": "jest",
