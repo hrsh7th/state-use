@@ -1,5 +1,6 @@
 import { createDraft, finishDraft } from 'immer';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { unstable_batchedUpdates } from 'react-dom';
 
 const useIsomorphicEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
@@ -165,9 +166,11 @@ class State<S> {
     const newState = finishDraft(this.context.state) as S;
     this.context.state = createDraft(newState) as S;
     if (newState !== this.state) {
-      this.state = newState;
-      this.depends.forEach(dep => {
-        dep(newState);
+      unstable_batchedUpdates(() => {
+        this.state = newState;
+        this.depends.forEach(dep => {
+          dep(newState);
+        });
       });
     }
   }
