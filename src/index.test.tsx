@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react-hooks';
-import { Async, define } from './index';
+import { define } from './index';
 
 test('should update', () => {
   const state = define<{ a: number }>();
@@ -13,11 +13,11 @@ test('should update', () => {
 
   // update state.
   act(() => {
-    state.update(s => {
-      s.a++;
+    state.update(ctx => {
+      ctx.state.a++;
     });
-    state.update(s => {
-      s.a++;
+    state.update(ctx => {
+      ctx.state.a++;
     });
   });
   expect(result.current).toBe(4);
@@ -42,8 +42,8 @@ test('shouldn\'t update', () => {
   // no change state.
   const current = result.current;
   act(() => {
-    state.update(s => {
-      s.a = 1;
+    state.update(ctx => {
+      ctx.state.a = 1;
     });
   });
   expect(result.current).toBe(current);
@@ -57,58 +57,57 @@ test('shouldn\'t update', () => {
 
 test('async success', async () => {
   const state = define<{
-    response: Async<number, unknown>;
+    isFetching: boolean | null,
+    response: number;
   }>();
   state.setup({
-    response: {
-      state: 'default'
-    }
+    isFetching: null,
+    response: -1
   });
 
-  const { result, waitForNextUpdate } = renderHook(() => state.use(s => s.response));
+  const { result } = renderHook(() => state.use(s => s));
 
   await act(async () => {
-    state.update((s, async) => {
-      s.response = async(async () => {
-        return wait(50).then(() => 100);
-      });
+    await state.update(function *(ctx) {
+      ctx.state.isFetching = true;
+      ctx.state.response = yield wait(100).then(() => 100);
+      ctx.state.isFetching = false;
     });
   });
-  expect(result.current).toEqual({ state: 'loading' });
-  expect(result.all).toHaveLength(2);
-
-  await waitForNextUpdate();
-  expect(result.current).toEqual({ state: 'success', response: 100 });
-  expect(result.all).toHaveLength(3);
+  expect(result.all).toEqual([
+    { isFetching: null, response: -1 },
+    { isFetching: true, response: -1 },
+    { isFetching: false, response: 100 },
+  ]);
 });
 
 test('async failure', async () => {
   const state = define<{
-    response: Async<number, unknown>;
+    isFetching: boolean | null,
+    response: number;
   }>();
   state.setup({
-    response: {
-      state: 'default'
-    }
+    isFetching: null,
+    response: -1
   });
 
-  const { result, waitForNextUpdate } = renderHook(() => state.use(s => s.response));
+  const { result } = renderHook(() => state.use(s => s));
 
   await act(async () => {
-    state.update((s, async) => {
-      s.response = async(async () => {
-        return wait(50).then(() => {
-          throw 'error';
-        });
-      });
+    await state.update(function *(ctx) {
+      ctx.state.isFetching = true;
+      try {
+        ctx.state.response = yield wait(100).then(() => Promise.reject(100));
+      } catch (e) {
+        ctx.state.isFetching = false;
+      }
     });
   });
-  expect(result.current).toEqual({ state: 'loading' });
-  expect(result.all).toHaveLength(2);
-
-  await waitForNextUpdate();
-  expect(result.current).toEqual({ state: 'failure', error: 'error' });
-  expect(result.all).toHaveLength(3);
+  expect(result.all).toEqual([
+    { isFetching: null, response: -1 },
+    { isFetching: true, response: -1 },
+    { isFetching: false, response: -1 },
+  ]);
 });
 
 test('nested update', () => {
@@ -116,10 +115,10 @@ test('nested update', () => {
   state.setup({ a: 1 });
   const { result } = renderHook(() => state.use(s => s.a));
   act(() => {
-    state.update(s => {
-      s.a++;
-      state.update(s => {
-        s.a++;
+    state.update(ctx => {
+      ctx.state.a++;
+      state.update(ctx => {
+        ctx.state.a++;
       });
     });
   });
@@ -130,10 +129,11 @@ test('nested update', () => {
 test('revoked draft should raise error', (done) => {
   const state = define<{ a: number }>();
   state.setup({ a: 1 });
-  state.update(s => {
+  state.update(ctx => {
+    const draft = ctx.state;
     setTimeout(() => {
       expect(() => {
-        s.a++;
+        draft.a++;
       }).toThrow();
       done();
     }, 100);

@@ -10,7 +10,19 @@ First, You should define your state.
 
 ```tsx
 // src/state/user.ts
-import { define, Async } from 'state-use';
+import { define } from 'state-use';
+
+type Async<R, E> = {
+  state: 'default';
+} | {
+  state: 'loading';
+} | {
+  state: 'success';
+  response: R;
+} | {
+  state: 'failure';
+  error: E;
+};
 
 export const UserState = define<{
   id: number;
@@ -62,6 +74,8 @@ export const User = () => {
 
 ### Async read/write state
 
+The `state-use` handles async operation via Generator Function.
+
 ```tsx
 // src/component/User.tsx
 
@@ -72,8 +86,19 @@ export const User = () => {
   const user = UserState.use();
 
   const onFetchButtonClick = useCallback(() => {
-    UserState.update((s, async) => {
-      s.details = async(() => fetch(`https://example.com/users/${s.id}/details`));
+    UserState.update(function *(ctx) => {
+      s.details.state = 'loading';
+      try {
+        s.details = {
+          state: 'success',
+          response: yield fetch(`https://example.com/users/${s.id}/details`).then(res => res.json())
+        };
+      } catch (e) {
+        s.details = {
+          state: 'failure',
+          error: error
+        };
+      }
     });
   });
 
