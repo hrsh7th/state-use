@@ -38,6 +38,11 @@ class State<S> {
   private depends: ((s: S) => void)[] = [];
 
   /**
+   * Current running state to avoid unneeded commit.
+   */
+  private running = false;
+
+  /**
    * Setup default state.
    */
   public setup = (state: S) => {
@@ -57,7 +62,10 @@ class State<S> {
         throw new Error('Required to call `setup` first.');
       }
     }
+    this.running = true;
     const gen = updater(this.context);
+    this.running = false;
+
     if (gen && typeof gen.next === 'function' && typeof gen.throw === 'function') {
       return new Promise<void>((resolve) => {
         const next = async (gen: Generator<Promise<unknown>, void, unknown>, r: unknown, e: unknown): Promise<void> => {
@@ -92,7 +100,9 @@ class State<S> {
         this.commit();
       });
     } else {
-      this.commit();
+      if (!this.running) {
+        this.commit();
+      }
     }
   };
 
