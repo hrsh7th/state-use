@@ -5,7 +5,7 @@ import { unstable_batchedUpdates } from 'react-dom';
 const useIsomorphicEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export type Context<S> = { state: S; };
-export type Updater<S> = (ctx: Context<S>) => Generator<Promise<unknown>, unknown> | void;
+export type Updater<S> = (ctx: Context<S>) => Generator<Promise<unknown>, void, unknown> | void;
 export type Selector<S, A = S> = (s: S) => A;
 
 /**
@@ -60,32 +60,41 @@ class State<S> {
     const gen = updater(this.context);
     if (gen && typeof gen.next === 'function' && typeof gen.throw === 'function') {
       return new Promise<void>((resolve, reject) => {
-        const next = (gen: Generator<Promise<unknown>, unknown>, r: unknown, e: unknown): void => {
-          this.commit();
+        const next = async (gen: Generator<Promise<unknown>, void, unknown>, r: unknown, e: unknown): Promise<void> => {
 
+          // Resume suspended generator.
           const current = typeof r !== 'undefined'
             ? gen.next(r)
             : typeof e !== 'undefined'
               ? gen.throw(e)
               : gen.next();
+
+          // Resolve promise with current state when generator has done.
           if (current.done) {
             return resolve();
           }
+
+          // Check yielded value is Promise.
           if (!(current.value instanceof Promise)) {
             return reject(new Error('The `updater` can only yield Promises.'));
           }
-          current.value.then(
-            r => next(gen, r, undefined),
-            e => next(gen, undefined, e)
+
+          // Wait for promise and then run next.
+          this.commit();
+          return current.value.then(
+            r => {
+              return next(gen, r, undefined)
+            },
+            e => {
+              return next(gen, undefined, e)
+            }
           );
-        }
+        };
+
+        // First run.
         next(gen!, undefined, undefined);
-      }).then(r => {
+      }).finally(() => {
         this.commit();
-        return r;
-      }, e => {
-        this.commit();
-        throw e;
       });
     } else {
       this.commit();

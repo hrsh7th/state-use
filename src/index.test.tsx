@@ -151,10 +151,10 @@ test('nested async update', async () => {
   await act(async () => {
     await state.update(function *(ctx) {
       ctx.state.a++;
-      ctx.state.a = yield Promise.resolve(ctx.state.a + 1);
-      state.update(function *(ctx) {
+      ctx.state.a = yield wait(100).then(() => ctx.state.a + 1);
+      yield state.update(function *(ctx) {
         ctx.state.a++;
-        ctx.state.a = yield Promise.resolve(ctx.state.a + 1);
+        ctx.state.a = yield wait(100).then(() => ctx.state.a + 1);
         state.update(ctx => {
           ctx.state.a++;
         });
@@ -164,7 +164,6 @@ test('nested async update', async () => {
   expect(result.all).toEqual([
     1,
     2,
-    3,
     4,
     6
   ]);
