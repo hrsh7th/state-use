@@ -4,7 +4,7 @@ module.exports = {
       '@babel/preset-env',
       {
         loose: true,
-        modules: process.env.MODULES === 'cjs' ? 'commonjs' : false,
+        modules: process.env.MODULES === 'esm' ? false : 'commonjs',
         useBuiltIns: 'usage',
         corejs: 3,
         targets: {
