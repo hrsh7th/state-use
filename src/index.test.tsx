@@ -126,6 +126,32 @@ test('nested update', () => {
   expect(result.all).toHaveLength(2);
 });
 
+test('nested async update', async () => {
+  const state = define<{ a: number }>();
+  state.setup({ a: 1 });
+  const { result } = renderHook(() => state.use(s => s.a));
+  await act(async () => {
+    await state.update(function *(ctx) {
+      ctx.state.a++;
+      ctx.state.a = yield Promise.resolve(ctx.state.a + 1);
+      state.update(function *(ctx) {
+        ctx.state.a++;
+        ctx.state.a = yield Promise.resolve(ctx.state.a + 1);
+        state.update(ctx => {
+          ctx.state.a++;
+        });
+      });
+    });
+  });
+  expect(result.all).toEqual([
+    1,
+    2,
+    3,
+    4,
+    6
+  ]);
+});
+
 test('revoked draft should raise error', (done) => {
   const state = define<{ a: number }>();
   state.setup({ a: 1 });
