@@ -174,6 +174,7 @@ test('revoked draft should raise error', (done) => {
   state.setup({ a: 1 });
   state.update(ctx => {
     const draft = ctx.state;
+    draft.a++;
     setTimeout(() => {
       expect(() => {
         draft.a++;

@@ -1,4 +1,4 @@
-import { createDraft, finishDraft } from 'immer';
+import { createDraft, finishDraft, current } from 'immer';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { unstable_batchedUpdates } from 'react-dom';
 
@@ -52,14 +52,14 @@ class State<S> {
    * Update function.
    */
   public update = async (updater: Updater<S>): Promise<void> => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV !== 'production') {
       if (!this.hasSetup) {
         throw new Error('Required to call `setup` first.');
       }
     }
     const gen = updater(this.context);
     if (gen && typeof gen.next === 'function' && typeof gen.throw === 'function') {
-      return new Promise<void>((resolve, reject) => {
+      return new Promise<void>((resolve) => {
         const next = async (gen: Generator<Promise<unknown>, void, unknown>, r: unknown, e: unknown): Promise<void> => {
 
           // Resume suspended generator.
@@ -74,14 +74,9 @@ class State<S> {
             return resolve();
           }
 
-          // Check yielded value is Promise.
-          if (!(current.value instanceof Promise)) {
-            return reject(new Error('The `updater` can only yield Promises.'));
-          }
-
           // Wait for promise and then run next.
           this.commit();
-          return current.value.then(
+          return Promise.resolve(current.value).then(
             r => {
               return next(gen, r, undefined)
             },
@@ -105,7 +100,7 @@ class State<S> {
    * Use state.
    */
   public use = <Select extends Selector<S, any> = (s: S) => S>(select?: Select, deps: React.DependencyList = []): ReturnType<Select> => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV !== 'production') {
       if (!this.hasSetup) {
         throw new Error('Required to call `setup` first.');
       }
@@ -151,7 +146,7 @@ class State<S> {
    * Get state without including it in rendering dependencies.
    */
   public get = <Select extends Selector<S, any> = (s: S) => S>(select?: Select): ReturnType<Select> => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV !== 'production') {
       if (!this.hasSetup) {
         throw new Error('Required to call `setup` first.');
       }
@@ -172,9 +167,12 @@ class State<S> {
         throw new Error('Required to call `setup` first.');
       }
     }
-    const newState = finishDraft(this.context.state) as S;
-    this.context.state = createDraft(newState) as S;
+    const newState = current(this.context.state);
     if (newState !== this.state) {
+      if (process.env.NODE_ENV !== 'production') {
+        finishDraft(this.context.state);
+      }
+      this.context.state = createDraft(newState) as S;
       unstable_batchedUpdates(() => {
         this.state = newState;
         this.depends.forEach(dep => {
