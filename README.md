@@ -12,6 +12,7 @@ First, You should define your state.
 // src/state/user.ts
 import { define } from 'state-use';
 
+// async helpers.
 type Async<R, E> = {
   state: 'default';
 } | {
@@ -22,6 +23,12 @@ type Async<R, E> = {
 } | {
   state: 'failure';
   error: E;
+};
+export const Async = {
+  default: () => ({ state: 'default' } as const),
+  loading: () => ({ state: 'loading' } as const),
+  success: <R extends unknown>(r: R) => ({ state: 'success', response: r } as const),
+  failure: <E extends unknown>(e: E) => ({ state: 'failure', error: e } as const),
 };
 
 export const UserState = define<{
@@ -37,13 +44,13 @@ Then you can initialize state.
 // src/index.tsx
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { UserState } from './state/user.ts';
+import { UserState, Async } from './state/user.ts';
 import { App } from './state/component/App.tsx';
 
 UserState.setup({
   id: 0,
   nickname: 'hrsh7th',
-  details: { state: 'default' },
+  details: Async.default(),
 }); // Setup default state (It can be used to fill server-side props).
 
 ReactDOM.render((
@@ -82,7 +89,7 @@ The `state-use` handles async operation via Generator Function.
 // src/component/User.tsx
 
 import React from 'react';
-import { UserState } from '../state/user';
+import { UserState, Async } from '../state/user';
 
 export const User = () => {
   const user = UserState.use();
@@ -90,17 +97,11 @@ export const User = () => {
   const onFetchButtonClick = useCallback(() => {
     // Warning: You must use `ctx.state` directly. You can't save `ctx.state` as another variable.
     UserState.update(function *(ctx) => {
-      ctx.state.details.state = 'loading';
+      ctx.state.details = Async.loading();
       try {
-        ctx.state.details = {
-          state: 'success',
-          response: yield fetch(`https://example.com/users/${s.id}/details`).then(res => res.json())
-        };
+        ctx.state.details = Async.success(yield fetch(`https://example.com/users/${s.id}/details`).then(res => res.json()));
       } catch (e) {
-        ctx.state.details = {
-          state: 'failure',
-          error: error
-        };
+        ctx.state.details = Async.failure(e);
       }
     });
   });

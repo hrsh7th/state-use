@@ -1,6 +1,25 @@
 import { renderHook, act } from '@testing-library/react-hooks';
 import { define } from './index';
 
+type Async<R, E> = {
+  state: 'default';
+} | {
+  state: 'loading';
+} | {
+  state: 'success';
+  response: R;
+} | {
+  state: 'failure';
+  error: E;
+};
+
+const async = {
+  default: () => ({ state: 'default' } as const),
+  loading: () => ({ state: 'loading' } as const),
+  success: <R extends unknown>(r: R) => ({ state: 'success', response: r } as const),
+  failure: <E extends unknown>(e: E) => ({ state: 'failure', error: e } as const),
+};
+
 test('should update', () => {
   const state = define<{ a: number }>();
   state.setup({ a: 1 });
@@ -57,56 +76,55 @@ test('shouldn\'t update', () => {
 
 test('async success', async () => {
   const state = define<{
-    isFetching: boolean | null,
-    response: number;
+    num: Async<number, unknown>;
   }>();
   state.setup({
-    isFetching: null,
-    response: -1
+    num: async.default()
   });
 
   const { result } = renderHook(() => state.use(s => s));
 
   await act(async () => {
     await state.update(function *(ctx) {
-      ctx.state.isFetching = true;
-      ctx.state.response = yield wait(100).then(() => 100);
-      ctx.state.isFetching = false;
+      ctx.state.num = async.loading();
+      try {
+        ctx.state.num = async.success(yield wait(100).then(() => 100));
+      } catch (e) {
+        ctx.state.num = async.failure(e);
+      }
     });
   });
   expect(result.all).toEqual([
-    { isFetching: null, response: -1 },
-    { isFetching: true, response: -1 },
-    { isFetching: false, response: 100 },
+    { num: async.default() },
+    { num: async.loading() },
+    { num: async.success(100) },
   ]);
 });
 
 test('async failure', async () => {
   const state = define<{
-    isFetching: boolean | null,
-    response: number;
+    num: Async<number, unknown>;
   }>();
   state.setup({
-    isFetching: null,
-    response: -1
+    num: async.default()
   });
 
   const { result } = renderHook(() => state.use(s => s));
 
   await act(async () => {
     await state.update(function *(ctx) {
-      ctx.state.isFetching = true;
+      ctx.state.num = async.loading();
       try {
-        ctx.state.response = yield wait(100).then(() => Promise.reject(100));
+        ctx.state.num = async.success(yield wait(100).then(() => Promise.reject(100)));
       } catch (e) {
-        ctx.state.isFetching = false;
+        ctx.state.num = async.failure(e);
       }
     });
   });
   expect(result.all).toEqual([
-    { isFetching: null, response: -1 },
-    { isFetching: true, response: -1 },
-    { isFetching: false, response: -1 },
+    { num: async.default() },
+    { num: async.loading() },
+    { num: async.failure(100) },
   ]);
 });
 
