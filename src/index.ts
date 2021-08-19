@@ -62,49 +62,14 @@ class State<S> {
         throw new Error('Required to call `setup` first.');
       }
     }
+    if (this.running) {
+      return this.resolve(updater(this.context));
+    }
+
     this.running = true;
     const gen = updater(this.context);
     this.running = false;
-
-    if (gen && typeof gen.next === 'function' && typeof gen.throw === 'function') {
-      return new Promise<void>((resolve) => {
-        const next = async (gen: Generator<Promise<unknown>, void, unknown>, r: unknown, e: unknown): Promise<void> => {
-
-          // Resume suspended generator.
-          const current = typeof r !== 'undefined'
-            ? gen.next(r)
-            : typeof e !== 'undefined'
-              ? gen.throw(e)
-              : gen.next();
-
-          // Resolve promise with current state when generator has done.
-          if (current.done) {
-            return resolve();
-          }
-
-          // Wait for promise and then run next.
-          this.commit();
-          return Promise.resolve(current.value).then(
-            r => {
-              return next(gen, r, undefined)
-            },
-            e => {
-              return next(gen, undefined, e)
-            }
-          );
-        };
-
-        // First run.
-        next(gen!, undefined, undefined);
-      }).then(() => {
-        this.commit();
-      });
-    } else {
-      if (!this.running) {
-        this.commit();
-      }
-    }
-    return Promise.resolve();
+    return this.resolve(gen, true);
   };
 
   /**
@@ -167,6 +132,49 @@ class State<S> {
       select = ((s) => s) as Select;
     }
     return select(this.state);
+  };
+
+  /**
+   * Run generator.
+   */
+  private resolve = async (gen: Generator<Promise<unknown>, void, unknown> | void, commit: boolean = false) => {
+    if (!(gen && 'next' in gen && 'throw' in gen)) {
+      if (commit) {
+        this.commit();
+      }
+      return Promise.resolve();
+    }
+
+    await new Promise<void>((resolve) => {
+      const next = async (gen: Generator<Promise<unknown>, void, unknown>, r: unknown, e: unknown): Promise<void> => {
+        // Resume suspended generator.
+        const current = typeof r !== 'undefined'
+          ? gen.next(r)
+          : typeof e !== 'undefined'
+            ? gen.throw(e)
+            : gen.next();
+
+        // Resolve promise with current state when generator has done.
+        if (current.done) {
+          return resolve();
+        }
+
+        // Wait for promise and then run next.
+        this.commit();
+        return Promise.resolve(current.value).then(
+          r => {
+            return next(gen, r, undefined)
+          },
+          e => {
+            return next(gen, undefined, e)
+          }
+        );
+      };
+
+      // First run.
+      next(gen, undefined, undefined);
+    });
+    this.commit();
   };
 
   /**

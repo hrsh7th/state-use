@@ -144,6 +144,23 @@ test('nested update', () => {
   expect(result.all).toHaveLength(2);
 });
 
+test('merge synchronous context', () => {
+  const state = define<{ a: number }>();
+  state.setup({ a: 1 });
+  const { result } = renderHook(() => state.use(s => s.a));
+  act(() => {
+    state.update(ctx => {
+      const s = ctx.state;
+      state.update(() => {
+        s.a++;
+      });
+      s.a++;
+    });
+  });
+  expect(result.current).toEqual(3);
+  expect(result.all).toHaveLength(2);
+});
+
 test('nested async update', async () => {
   const state = define<{ a: number }>();
   state.setup({ a: 1 });
