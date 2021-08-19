@@ -56,7 +56,7 @@ class State<S> {
   /**
    * Update function.
    */
-  public update = async (updater: Updater<S>): Promise<void> => {
+  public update = (updater: Updater<S>): Promise<void> => {
     if (process.env.NODE_ENV !== 'production') {
       if (!this.hasSetup) {
         throw new Error('Required to call `setup` first.');
@@ -96,7 +96,7 @@ class State<S> {
 
         // First run.
         next(gen!, undefined, undefined);
-      }).finally(() => {
+      }).then(() => {
         this.commit();
       });
     } else {
@@ -104,6 +104,7 @@ class State<S> {
         this.commit();
       }
     }
+    return Promise.resolve();
   };
 
   /**
