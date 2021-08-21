@@ -4,6 +4,10 @@ import { unstable_batchedUpdates } from 'react-dom';
 
 const useIsomorphicEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
+const isGenerator = (arg?: any): arg is Generator<Promise<unknown>, void, unknown> => {
+  return arg && 'next' in arg && 'throw' in arg && typeof arg.next === 'function' && typeof arg.throw === 'function';
+};
+
 export type Context<S> = { state: S; };
 export type Updater<S> = (ctx: Context<S>) => Generator<Promise<unknown>, void, unknown> | void;
 export type Selector<S, A = S> = (s: S) => A;
@@ -67,9 +71,16 @@ class State<S> {
     }
 
     this.running = true;
-    const gen = updater(this.context);
-    this.running = false;
-    return this.resolve(gen, true);
+    const ret = updater(this.context);
+    if (!isGenerator(ret)) {
+      this.running = false;
+      this.commit();
+      return Promise.resolve();
+    } else {
+      return this.resolve(ret, true).then(() => {
+        this.running = false;
+      });
+    }
   };
 
   /**
@@ -138,7 +149,7 @@ class State<S> {
    * Run generator.
    */
   private resolve = async (gen: Generator<Promise<unknown>, void, unknown> | void, commit: boolean = false) => {
-    if (!(gen && 'next' in gen && 'throw' in gen)) {
+    if (!isGenerator(gen)) {
       if (commit) {
         this.commit();
       }

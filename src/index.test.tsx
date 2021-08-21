@@ -161,6 +161,25 @@ test('merge synchronous context', () => {
   expect(result.all).toHaveLength(2);
 });
 
+test('merge synchronous context after async', async () => {
+  const state = define<{ a: number }>();
+  state.setup({ a: 1 });
+  const { result } = renderHook(() => state.use(s => s.a));
+  await act(async () => {
+    await state.update(function *(ctx) {
+      ctx.state.a = 2;
+      ctx.state.a = yield wait(100).then(() => Promise.resolve(100));
+      const s = ctx.state;
+      state.update(() => {
+        s.a++;
+      });
+      s.a++;
+    });
+  });
+  expect(result.current).toEqual(102);
+  expect(result.all).toHaveLength(3);
+});
+
 test('nested async update', async () => {
   const state = define<{ a: number }>();
   state.setup({ a: 1 });
