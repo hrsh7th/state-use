@@ -51,10 +51,10 @@ class State<S> {
    */
   public setup = (state: S) => {
     this.hasSetup = true;
-    this.state = state;
     this.context = {
-      state: createDraft(this.state) as S
+      state: createDraft(state) as S
     };
+    this.commit();
   }
 
   /**

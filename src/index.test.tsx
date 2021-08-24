@@ -20,6 +20,22 @@ const async = {
   failure: <E extends unknown>(e: E) => ({ state: 'failure', error: e } as const),
 };
 
+test('re-setup', () => {
+  const state = define<{ a: number }>();
+  state.setup({ a: 1 });
+
+  const { result } = renderHook(() => state.use(s => s.a));
+
+  // update state.
+  act(() => {
+    state.setup({
+      a: 2
+    });
+  });
+  expect(result.current).toBe(2);
+  expect(result.all).toHaveLength(2);
+});
+
 test('should update', () => {
   const state = define<{ a: number }>();
   state.setup({ a: 1 });
