@@ -49,18 +49,25 @@ class State<S> {
   /**
    * Setup default state.
    */
-  public setup = (state: S) => {
+  public setup = async (state: S) => {
     this.hasSetup = true;
     this.context = {
       state: createDraft(state) as S
     };
-    this.commit();
+    if (this.depends.length) {
+      return Promise.resolve().then(() => {
+        this.commit();
+      });
+    } else {
+      this.commit();
+    }
+    return Promise.resolve();
   }
 
   /**
    * Update function.
    */
-  public update = (updater: Updater<S>): Promise<void> => {
+  public update = async (updater: Updater<S>) => {
     if (process.env.NODE_ENV !== 'production') {
       if (!this.hasSetup) {
         throw new Error('Required to call `setup` first.');
