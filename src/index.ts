@@ -22,11 +22,6 @@ export function define<S>() {
 class State<S> {
 
   /**
-   * State has setup or not.
-   */
-  private hasSetup = false;
-
-  /**
    * An internal state object.
    */
   private state!: S;
@@ -47,10 +42,22 @@ class State<S> {
   private running = false;
 
   /**
+   * State has setup or not.
+   */
+  private _hasSetup = false;
+
+  /**
+   * Return this state has setupped or not.
+   */
+  public get hasSetup() {
+    return this._hasSetup;
+  }
+
+  /**
    * Setup default state.
    */
   public setup = async (state: S) => {
-    this.hasSetup = true;
+    this._hasSetup = true;
     this.context = {
       state: createDraft(state) as S
     };
@@ -69,7 +76,7 @@ class State<S> {
    */
   public update = async (updater: Updater<S>) => {
     if (process.env.NODE_ENV !== 'production') {
-      if (!this.hasSetup) {
+      if (!this._hasSetup) {
         throw new Error('Required to call `setup` first.');
       }
     }
@@ -95,7 +102,7 @@ class State<S> {
    */
   public use = <Select extends Selector<S, any> = (s: S) => S>(select?: Select, deps: React.DependencyList = []): ReturnType<Select> => {
     if (process.env.NODE_ENV !== 'production') {
-      if (!this.hasSetup) {
+      if (!this._hasSetup) {
         throw new Error('Required to call `setup` first.');
       }
     }
@@ -141,7 +148,7 @@ class State<S> {
    */
   public get = <Select extends Selector<S, any> = (s: S) => S>(select?: Select): ReturnType<Select> => {
     if (process.env.NODE_ENV !== 'production') {
-      if (!this.hasSetup) {
+      if (!this._hasSetup) {
         throw new Error('Required to call `setup` first.');
       }
     }
@@ -200,7 +207,7 @@ class State<S> {
    */
   private commit = () => {
     if (process.env.NODE_ENV === 'development') {
-      if (!this.hasSetup) {
+      if (!this._hasSetup) {
         throw new Error('Required to call `setup` first.');
       }
     }
