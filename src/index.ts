@@ -130,7 +130,7 @@ class State<S> {
           this.depends.splice(idx, 1)
         }
       };
-    }, []);
+    }, deps);
 
     // Listen deps changed.
     useMemo(() => {

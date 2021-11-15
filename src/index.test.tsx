@@ -236,4 +236,35 @@ test('revoked draft should raise error', (done) => {
   });
 });
 
+test('re-listen when deps were changed', async () => {
+  const state = define<{ a: number }>();
+  state.setup({ a: 1 });
+  const { result, rerender } = renderHook((props) => {
+    return state.use(s => s.a + props.delta, [props.delta])
+  }, {
+    initialProps: {
+      delta: 1
+    }
+  });
+  act(() => {
+    state.update(ctx => {
+      ctx.state.a = 2;
+    });
+  });
+  expect(result.current).toEqual(3);
+  expect(result.all).toHaveLength(2);
+
+  rerender({ delta: 2 });
+  expect(result.current).toEqual(4);
+  expect(result.all).toHaveLength(3);
+
+  act(() => {
+    state.update(ctx => {
+      ctx.state.a = 3;
+    });
+  });
+  expect(result.current).toEqual(5);
+  expect(result.all).toHaveLength(4);
+});
+
 const wait = (timeout: number) => new Promise(resolve => setTimeout(resolve, timeout));
